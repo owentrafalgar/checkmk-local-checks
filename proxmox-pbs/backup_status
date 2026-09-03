@@ -1,0 +1,18 @@
+#!/bin/bash
+STATUS_DIR="/var/lib/backup-status"
+MAX_AGE_SECONDS=$((36 * 3600))   # Alert if backup is older than 36h
+NOW=$(date +%s)
+for status_file in "$STATUS_DIR"/*.status; do
+    [ -e "$status_file" ] || continue
+    JOB_NAME=$(basename "$status_file" .status)
+    source "$status_file"
+    AGE=$((NOW - TIMESTAMP))
+    AGE_HOURS=$((AGE / 3600))
+    if [ "$EXIT_CODE" -ne 0 ]; then
+        echo "2 \"Backup ${JOB_NAME}\" - CRIT: Last backup failed (exit code $EXIT_CODE), ${AGE_HOURS}h ago. ${LOGFILE:+Log: $LOGFILE}"
+    elif [ "$AGE" -gt "$MAX_AGE_SECONDS" ]; then
+        echo "1 \"Backup ${JOB_NAME}\" - WARN: Last successful backup is ${AGE_HOURS}h old (expected under $((MAX_AGE_SECONDS / 3600))h)."
+    else
+        echo "0 \"Backup ${JOB_NAME}\" - OK: Backup succeeded ${AGE_HOURS}h ago."
+    fi
+done

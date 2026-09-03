@@ -1,0 +1,68 @@
+#!/bin/bash
+source /etc/check_mk/immich.secrets
+BASE_URL="http://localhost:2283/api"
+
+echo "<<<<immich_server>>>>"
+echo "<<<local:sep(0)>>>"
+
+STORAGE=$(curl -s -H "x-api-key: ${API_KEY}" "${BASE_URL}/server/storage")
+if [ -z "$STORAGE" ]; then
+    echo "3 \"Immich Storage\" - Could not reach Immich API"
+else
+    PCT=$(echo "$STORAGE" | jq -r '.diskUsagePercentage')
+    AVAIL=$(echo "$STORAGE" | jq -r '.diskAvailable')
+    SIZE=$(echo "$STORAGE" | jq -r '.diskSize')
+    PCT_INT=${PCT%.*}
+    if [ "$PCT_INT" -ge 90 ]; then STATE=2
+    elif [ "$PCT_INT" -ge 80 ]; then STATE=1
+    else STATE=0
+    fi
+    echo "${STATE} \"Immich Storage\" usage_percent=${PCT} OK - ${PCT}% used, ${AVAIL} free of ${SIZE}"
+fi
+
+JOBS=$(curl -s -H "x-api-key: ${API_KEY}" "${BASE_URL}/jobs")
+if [ -z "$JOBS" ]; then
+    echo "3 \"Immich Jobs\" - Could not reach Immich API"
+else
+    for job in $(echo "$JOBS" | jq -r 'keys[]'); do
+        FAILED=$(echo "$JOBS" | jq -r ".\"$job\".jobCounts.failed")
+        WAITING=$(echo "$JOBS" | jq -r ".\"$job\".jobCounts.waiting")
+        ACTIVE=$(echo "$JOBS" | jq -r ".\"$job\".jobCounts.active")
+        DELAYED=$(echo "$JOBS" | jq -r ".\"$job\".jobCounts.delayed")
+
+        JOB_LABEL=$(echo "$job" | sed 's/\([A-Z]\)/ \1/g')
+        JOB_LABEL="$(tr '[:lower:]' '[:upper:]' <<< ${JOB_LABEL:0:1})${JOB_LABEL:1}"
+
+        if [ "$FAILED" -gt 0 ]; then STATE=2; MSG="CRIT - ${FAILED} failed jobs"
+        elif [ "$WAITING" -gt 100 ]; then STATE=1; MSG="WARN - ${WAITING} jobs waiting"
+        else STATE=0; MSG="OK"
+        fi
+        echo "${STATE} \"Immich Job ${JOB_LABEL}\" failed=${FAILED}|waiting=${WAITING}|active=${ACTIVE}|delayed=${DELAYED} ${MSG} - active=${ACTIVE} waiting=${WAITING} failed=${FAILED} delayed=${DELAYED}"
+    done
+fi
+
+VERSION_INFO=$(curl -s -H "x-api-key: ${API_KEY}" "${BASE_URL}/server/version-check")
+ABOUT_INFO=$(curl -s -H "x-api-key: ${API_KEY}" "${BASE_URL}/server/about")
+if [ -z "$VERSION_INFO" ] || [ -z "$ABOUT_INFO" ]; then
+    echo "3 \"Immich Version\" - Could not reach Immich API"
+else
+    LATEST=$(echo "$VERSION_INFO" | jq -r '.releaseVersion')
+    CURRENT=$(echo "$ABOUT_INFO" | jq -r '.version')
+    if [ "$LATEST" == "$CURRENT" ]; then STATE=0; MSG="OK - running latest version ${CURRENT}"
+    else STATE=1; MSG="WARN - update available: ${CURRENT} -> ${LATEST}"
+    fi
+    echo "${STATE} \"Immich Version\" - ${MSG}"
+fi
+
+STATS=$(curl -s -H "x-api-key: ${API_KEY}" "${BASE_URL}/server/statistics")
+if [ -z "$STATS" ]; then
+    echo "3 \"Immich Statistics\" - Could not reach Immich API"
+else
+    PHOTOS=$(echo "$STATS" | jq -r '.photos')
+    VIDEOS=$(echo "$STATS" | jq -r '.videos')
+    USAGE_BYTES=$(echo "$STATS" | jq -r '.usage')
+    USAGE_GB=$(awk "BEGIN {printf \"%.1f\", ${USAGE_BYTES}/1024/1024/1024}")
+    echo "0 \"Immich Statistics\" photos=${PHOTOS}|videos=${VIDEOS}|usage_gb=${USAGE_GB} OK - ${PHOTOS} photos, ${VIDEOS} videos, ${USAGE_GB} GiB total"
+fi
+
+echo "<<<<>>>>"

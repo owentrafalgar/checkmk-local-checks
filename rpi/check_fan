@@ -1,0 +1,14 @@
+#!/bin/bash
+HWMON_DIR=$(grep -l pwmfan /sys/class/hwmon/hwmon*/name 2>/dev/null | xargs dirname)
+if [ -z "$HWMON_DIR" ]; then
+    echo "3 \"Fan Speed\" - UNKNOWN: pwmfan hwmon device not found"
+    exit
+fi
+RPM=$(cat "$HWMON_DIR/fan1_input" 2>/dev/null)
+PWM=$(cat "$HWMON_DIR/pwm1" 2>/dev/null)
+PWM_PCT=$((PWM * 100 / 255))
+if [ -z "$RPM" ]; then
+    echo "3 \"Fan Speed\" - UNKNOWN: could not read fan1_input"
+    exit
+fi
+echo "0 \"Fan Speed\" rpm=$RPM;;; OK: Fan running at ${RPM} RPM (${PWM_PCT}% PWM)"

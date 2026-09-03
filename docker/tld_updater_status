@@ -1,0 +1,25 @@
+#!/bin/bash
+STATUS_FILE="/usr/local/sbin/docker/tld-updater/status/tld-updater.status"
+NOW=$(date +%s)
+MAX_AGE_SECONDS=$((8 * 24 * 3600))   # WARN if older than 8 days (weekly job + buffer)
+
+if [ ! -e "$STATUS_FILE" ]; then
+    RESULT="3 \"TLD Updater\" - UNKNOWN: Status file not found (has it ever run?)"
+else
+    source "$STATUS_FILE"
+    AGE=$((NOW - TIMESTAMP))
+    AGE_HOURS=$((AGE / 3600))
+
+    if [ "$EXIT_CODE" -ne 0 ]; then
+        RESULT="2 \"TLD Updater\" - CRIT: Last run failed (exit code $EXIT_CODE), ${AGE_HOURS}h ago."
+    elif [ "$AGE" -gt "$MAX_AGE_SECONDS" ]; then
+        RESULT="1 \"TLD Updater\" - WARN: Last successful run is ${AGE_HOURS}h old (expected under $((MAX_AGE_SECONDS / 3600))h)."
+    else
+        RESULT="0 \"TLD Updater\" - OK: Last run succeeded ${AGE_HOURS}h ago."
+    fi
+fi
+
+echo "<<<<tld-updater>>>>"
+echo "<<<local:sep(0)>>>"
+echo "$RESULT"
+echo "<<<<>>>>"

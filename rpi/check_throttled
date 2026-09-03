@@ -1,0 +1,22 @@
+#!/bin/bash
+RAW=$(vcgencmd get_throttled | cut -d= -f2)
+VAL=$((RAW))
+CURRENT_UNDERVOLTAGE=$(( (VAL >> 0) & 1 ))
+CURRENT_THROTTLED=$(( (VAL >> 1) & 1 ))
+CURRENT_OVERHEAT=$(( (VAL >> 2) & 1 ))
+CURRENT_SOFTLIMIT=$(( (VAL >> 3) & 1 ))
+EVER_UNDERVOLTAGE=$(( (VAL >> 16) & 1 ))
+EVER_THROTTLED=$(( (VAL >> 17) & 1 ))
+EVER_OVERHEAT=$(( (VAL >> 18) & 1 ))
+EVER_SOFTLIMIT=$(( (VAL >> 19) & 1 ))
+if [ "$CURRENT_UNDERVOLTAGE" -eq 1 ] || [ "$CURRENT_THROTTLED" -eq 1 ] || [ "$CURRENT_OVERHEAT" -eq 1 ]; then
+    STATE=2
+    MSG="CRIT: Active problem right now! Undervoltage=$CURRENT_UNDERVOLTAGE Throttled=$CURRENT_THROTTLED Overheat=$CURRENT_OVERHEAT"
+elif [ "$EVER_UNDERVOLTAGE" -eq 1 ] || [ "$EVER_THROTTLED" -eq 1 ] || [ "$EVER_OVERHEAT" -eq 1 ]; then
+    STATE=1
+    MSG="WARN: Occurred since boot - Undervoltage=$EVER_UNDERVOLTAGE Throttled=$EVER_THROTTLED Overheat=$EVER_OVERHEAT (raw: $RAW)"
+else
+    STATE=0
+    MSG="OK: No undervoltage or throttling detected (raw: $RAW)"
+fi
+echo "$STATE \"Power Throttling\" - $MSG"

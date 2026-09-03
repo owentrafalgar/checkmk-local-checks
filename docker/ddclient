@@ -1,0 +1,30 @@
+#!/bin/bash
+CACHE=$(docker exec ddclient cat /run/ddclient-cache/ddclient.cache 2>/dev/null)
+
+echo "<<<<ddclient>>>>"
+echo "<<<local:sep(0)>>>"
+
+if [ -z "$CACHE" ]; then
+    echo "3 \"DDclient Update\" - Could not read ddclient cache"
+    echo "<<<<>>>>"
+    exit 0
+fi
+
+LINE=$(echo "$CACHE" | tail -n +3)
+MTIME=$(echo "$LINE" | grep -oP 'mtime=\K[0-9]+')
+IP=$(echo "$LINE" | grep -oP 'ipv4=\K[0-9.]+')
+STATUS=$(echo "$LINE" | grep -oP 'status-ipv4=\K\S+')
+HOST=$(echo "$LINE" | grep -oP 'host=\K[^,]+')
+NOW=$(date +%s)
+AGE=$((NOW - MTIME))
+
+if [ "$STATUS" == "good" ]; then
+    STATE=0
+    MSG="OK - ${HOST} -> ${IP} (last update ${AGE}s ago)"
+else
+    STATE=2
+    MSG="CRIT - status=${STATUS} for ${HOST}"
+fi
+
+echo "${STATE} \"DDclient Update\" age=${AGE}s ${MSG}"
+echo "<<<<>>>>"
