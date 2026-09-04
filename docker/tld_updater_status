@@ -1,5 +1,5 @@
 #!/bin/bash
-STATUS_FILE="/usr/local/sbin/docker/tld-updater/status/tld-updater.status"
+STATUS_FILE="/usr/local/sbin/docker/tld-updater/status/status.status"
 NOW=$(date +%s)
 MAX_AGE_SECONDS=$((8 * 24 * 3600))   # WARN if older than 8 days (weekly job + buffer)
 
