@@ -1,13 +1,17 @@
 #!/bin/bash
 # Checkmk local check: UniFi Protect Backup - download/upload failures
 #
-# Compares log timestamps since the last run (stored in STATE_FILE) to only
-# report new failures, not the entire container history every run.
+# Uses piggyback so the service shows up under the dedicated
+# 'unifi-protect-backup' host instead of the 'docker' host.
+# Must live directly under local/ (no numbered interval subfolder) -
+# piggyback markers are lost when Checkmk caches numbered-folder scripts.
+#
 # Timestamps use the 'Z' (UTC) suffix explicitly - without it, the Docker
 # daemon appears to interpret the timestamp as local time and shifts the
 # actual filter window by the local UTC offset.
 
 CONTAINER_NAME="unifi-protect-backup"
+PIGGYBACK_HOST="unifi-protect-backup"
 SERVICE="UniFi Protect Backup"
 STATE_FILE="/var/lib/check_mk_agent/unifi_protect_backup_last_check"
 
@@ -35,7 +39,12 @@ PERF="failed_downloads=${FAILED_DOWNLOADS} failed_uploads=${FAILED_UPLOADS} succ
 
 if [ "$TOTAL_FAILURES" -gt 0 ]; then
     LAST_FAIL=$(echo "$LOG_OUTPUT" | grep -E 'unifi_protect_backup\.(downloader|uploader)\s*:.*(Failed|Error)' | tail -1 | sed 's/^[0-9-]* [0-9:]* //' | cut -c1-250)
-    echo "2 \"$SERVICE\" $PERF - ${TOTAL_FAILURES} failed download(s)/upload(s). Last: ${LAST_FAIL}"
+    RESULT_LINE="2 \"$SERVICE\" $PERF - ${TOTAL_FAILURES} failed download(s)/upload(s). Last: ${LAST_FAIL}"
 else
-    echo "0 \"$SERVICE\" $PERF - ${SUCCESSFUL_UPLOADS} successful uploads, no failures"
+    RESULT_LINE="0 \"$SERVICE\" $PERF - ${SUCCESSFUL_UPLOADS} successful uploads, no failures"
 fi
+
+echo "<<<<${PIGGYBACK_HOST}>>>>"
+echo "<<<local:sep(0)>>>"
+echo "$RESULT_LINE"
+echo "<<<<>>>>"
