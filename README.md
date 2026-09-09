@@ -11,6 +11,7 @@ editing a script here (on any host) is the same as editing the live version.
 | docker/tld_updater_status     | docker           | /usr/lib/check_mk_agent/local/tld_updater_status       | No interval dir - piggybacks to `tld-updater` host |
 | docker/ddclient                | docker           | /usr/lib/check_mk_agent/local/3600/ddclient            | Piggybacks to `ddclient` host |
 | docker/immich                  | docker           | /usr/lib/check_mk_agent/local/300/immich               | Needs /etc/check_mk/immich.secrets (not in repo) |
+| docker/unifi_protect_backup    | docker           | /usr/lib/check_mk_agent/local/unifi_protect_backup     | Piggybacks to `unifi-protect-backup` host |
 | proxmox-pbs/backup_status      | proxmox AND pbs  | /usr/lib/check_mk_agent/local/3600/backup_status       | Identical script on both hosts |
 | rpi/check_throttled            | pihole (RPi)     | /usr/lib/check_mk_agent/local/60/check_throttled       | Reads `vcgencmd get_throttled` |
 | rpi/check_fan                  | pihole (RPi)     | /usr/lib/check_mk_agent/local/60/check_fan             | Reads PWM fan via hwmon |
