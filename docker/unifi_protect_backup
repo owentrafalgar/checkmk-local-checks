@@ -1,5 +1,8 @@
 #!/bin/bash
-# Checkmk local check: UniFi Protect Backup - Download/Upload Fehler
+# Checkmk local check: UniFi Protect Backup - download/upload failures
+#
+# Compares log timestamps since the last run (stored in STATE_FILE) to only
+# report new failures, not the entire container history every run.
 
 CONTAINER_NAME="unifi-protect-backup"
 SERVICE="UniFi Protect Backup"
@@ -7,6 +10,7 @@ STATE_FILE="/var/lib/check_mk_agent/unifi_protect_backup_last_check"
 
 mkdir -p "$(dirname "$STATE_FILE")"
 
+# On first run, only look back 1 hour to avoid flagging old, already-known issues
 if [ -f "$STATE_FILE" ]; then
     SINCE=$(cat "$STATE_FILE")
 else
@@ -17,6 +21,8 @@ NOW=$(date -u '+%Y-%m-%dT%H:%M:%S')
 LOG_OUTPUT=$(docker logs --since "$SINCE" --until "$NOW" "$CONTAINER_NAME" 2>&1)
 echo "$NOW" > "$STATE_FILE"
 
+# Only match failures reported by the downloader/uploader modules themselves,
+# not unrelated ERROR lines (e.g. websocket reconnects, which are self-healing)
 FAILED_DOWNLOADS=$(echo "$LOG_OUTPUT" | grep -cE 'unifi_protect_backup\.downloader\s*:.*Failed download attempt')
 FAILED_UPLOADS=$(echo "$LOG_OUTPUT" | grep -cE 'unifi_protect_backup\.uploader\s*:.*(Failed|Error)')
 SUCCESSFUL_UPLOADS=$(echo "$LOG_OUTPUT" | grep -cE 'unifi_protect_backup\.uploader\s*:.*\bUploaded\b')
@@ -26,7 +32,7 @@ PERF="failed_downloads=${FAILED_DOWNLOADS} failed_uploads=${FAILED_UPLOADS} succ
 
 if [ "$TOTAL_FAILURES" -gt 0 ]; then
     LAST_FAIL=$(echo "$LOG_OUTPUT" | grep -E 'unifi_protect_backup\.(downloader|uploader)\s*:.*(Failed|Error)' | tail -1 | sed 's/^[0-9-]* [0-9:]* //' | cut -c1-250)
-    echo "2 \"$SERVICE\" $PERF - ${TOTAL_FAILURES} fehlgeschlagene(r) Download(s)/Upload(s). Letzter: ${LAST_FAIL}"
+    echo "2 \"$SERVICE\" $PERF - ${TOTAL_FAILURES} failed download(s)/upload(s). Last: ${LAST_FAIL}"
 else
-    echo "0 \"$SERVICE\" $PERF - ${SUCCESSFUL_UPLOADS} erfolgreiche Uploads, keine Fehler"
+    echo "0 \"$SERVICE\" $PERF - ${SUCCESSFUL_UPLOADS} successful uploads, no failures"
 fi
