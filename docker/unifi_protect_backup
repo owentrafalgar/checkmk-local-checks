@@ -3,6 +3,9 @@
 #
 # Compares log timestamps since the last run (stored in STATE_FILE) to only
 # report new failures, not the entire container history every run.
+# Timestamps use the 'Z' (UTC) suffix explicitly - without it, the Docker
+# daemon appears to interpret the timestamp as local time and shifts the
+# actual filter window by the local UTC offset.
 
 CONTAINER_NAME="unifi-protect-backup"
 SERVICE="UniFi Protect Backup"
@@ -14,9 +17,9 @@ mkdir -p "$(dirname "$STATE_FILE")"
 if [ -f "$STATE_FILE" ]; then
     SINCE=$(cat "$STATE_FILE")
 else
-    SINCE=$(date -u -d '1 hour ago' '+%Y-%m-%dT%H:%M:%S')
+    SINCE=$(date -u -d '1 hour ago' '+%Y-%m-%dT%H:%M:%SZ')
 fi
-NOW=$(date -u '+%Y-%m-%dT%H:%M:%S')
+NOW=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 
 LOG_OUTPUT=$(docker logs --since "$SINCE" --until "$NOW" "$CONTAINER_NAME" 2>&1)
 echo "$NOW" > "$STATE_FILE"
