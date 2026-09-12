@@ -1,7 +1,7 @@
 #!/bin/bash
 STATUS_FILE="/usr/local/sbin/docker/tld-updater/status/status.status"
 NOW=$(date +%s)
-MAX_AGE_SECONDS=$((8 * 24 * 3600))   # WARN if older than 8 days (weekly job + buffer)
+MAX_AGE_SECONDS=$((10 * 24 * 3600))   # WARN if older than 10 days (weekly job + maintenance buffer)
 
 if [ ! -e "$STATUS_FILE" ]; then
     RESULT="3 \"TLD Updater\" - UNKNOWN: Status file not found (has it ever run?)"
